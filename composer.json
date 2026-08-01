@@ -1,0 +1,57 @@
+{
+  "name": "sugarmill/s3-signer",
+  "version": "1.0.0",
+  "description": "AWS Signature Version 4 signing for S3-compatible object storage. Presigned URLs and signed request headers, no HTTP client, no SDK. Verified against Cloudflare R2, AWS S3, Backblaze B2 and DigitalOcean Spaces.",
+  "type": "library",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://github.com/sugarmill/s3-signer",
+  "authors": [
+    {
+      "name": "David Sherlock",
+      "homepage": "https://arraypress.com/"
+    }
+  ],
+  "keywords": [
+    "s3",
+    "sigv4",
+    "signature-v4",
+    "presigned-url",
+    "r2",
+    "cloudflare-r2",
+    "backblaze",
+    "spaces",
+    "object-storage",
+    "aws"
+  ],
+  "require": {
+    "php": ">=8.5"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "SugarMill\\S3Signer\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "SugarMill\\S3Signer\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "bench": "php -d opcache.enable_cli=1 -d opcache.jit=tracing -d opcache.jit_buffer_size=64M bench/run.php"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true,
+    "preferred-install": "dist"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "support": {
+    "issues": "https://github.com/sugarmill/s3-signer/issues",
+    "source": "https://github.com/sugarmill/s3-signer"
+  }
+}
