@@ -15,6 +15,39 @@ The AWS SDK is ~15MB and pulls in Guzzle. If all you need is "give this customer
 - 🚫 **Zero dependencies** — plain PHP. `ext-intl` is optional and only sharpens transliteration.
 - ⚡ **No I/O** — pure functions over credentials. Nothing to mock in your tests.
 
+## Providers
+
+```php
+use SugarMill\S3Signer\Provider;
+
+Provider::options();   // value => label, for a settings dropdown
+
+$signer = Provider::Linode->signer( $key, $secret, region: 'eu-central-1' );
+$signer = Provider::R2->signer( $key, $secret, account_id: $account );
+$signer = Provider::MinIO->signer( $key, $secret, endpoint: 'minio.local:9000' );
+```
+
+| Provider | Endpoint | Addressing |
+|---|---|---|
+| Amazon S3 | `s3.{region}.amazonaws.com` | virtual-hosted |
+| Cloudflare R2 | `{account}.r2.cloudflarestorage.com` | path |
+| Backblaze B2 | `s3.{region}.backblazeb2.com` | virtual-hosted |
+| DigitalOcean Spaces | `{region}.digitaloceanspaces.com` | virtual-hosted |
+| Linode Object Storage | `{region}.linodeobjects.com` | virtual-hosted |
+| Wasabi | `s3.{region}.wasabisys.com` | virtual-hosted |
+| Scaleway | `s3.{region}.scw.cloud` | virtual-hosted |
+| MinIO / other | you supply it | path |
+
+Three things vary between providers and all three fail confusingly when guessed:
+
+**Addressing style.** Virtual-hosted puts the bucket in the hostname, path style puts it in the path. Get it wrong and every request 404s against a bucket that plainly exists.
+
+**Region.** R2 signs everything as `auto` and rejects a real region; AWS rejects a signature computed for the wrong one.
+
+**What identifies the endpoint.** Most interpolate a region, R2 an account id, MinIO is whatever the operator hosts. `needs_account_id()` and `needs_endpoint()` let a form show only the fields that apply.
+
+`us-east-1` on AWS deliberately yields the legacy global `s3.amazonaws.com` rather than `s3.us-east-1.amazonaws.com`, because that is what the region resolves to.
+
 ## Requirements
 
 - PHP 8.5+
