@@ -7,7 +7,7 @@
  * and getting it wrong for anyone outside Latin-1 is the sort of bug
  * that never gets reported — the buyer just assumes the file is broken.
  *
- * @package   SugarMill\S3Signer
+ * @package   Sugar\S3Signer
  * @copyright Copyright (c) 2026, ArrayPress Limited
  * @license   GPL-2.0-or-later
  * @since     1.0.0
@@ -15,12 +15,12 @@
 
 declare( strict_types=1 );
 
-namespace SugarMill\S3Signer\Tests;
+namespace Sugar\S3Signer\Tests;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
-use SugarMill\S3Signer\ContentDisposition;
+use Sugar\S3Signer\ContentDisposition;
 
 final class ContentDispositionTest extends TestCase {
 

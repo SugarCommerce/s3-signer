@@ -2,7 +2,7 @@
 /**
  * Bucket addressing styles.
  *
- * @package   SugarMill\S3Signer
+ * @package   Sugar\S3Signer
  * @copyright Copyright (c) 2026, ArrayPress Limited
  * @license   GPL-2.0-or-later
  * @since     1.0.0
@@ -10,7 +10,7 @@
 
 declare( strict_types=1 );
 
-namespace SugarMill\S3Signer;
+namespace Sugar\S3Signer;
 
 /**
  * Enum AddressingStyle
