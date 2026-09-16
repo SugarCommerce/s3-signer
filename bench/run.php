@@ -3,7 +3,7 @@ declare( strict_types=1 );
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../../bench-lib.php';
 
-use Sugar\S3Signer\Signer;
+use SugarCommerce\S3Signer\Signer;
 
 $signer = Signer::r2( 'AKIAEXAMPLE', str_repeat( 'k', 40 ), 'account123' );
 

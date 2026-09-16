@@ -7,7 +7,7 @@
  * downloads in production. Treat any change to them as a breaking change:
  * a differing signature means every presigned URL stops working.
  *
- * @package   Sugar\S3Signer
+ * @package   SugarCommerce\S3Signer
  * @copyright Copyright (c) 2026, ArrayPress Limited
  * @license   GPL-2.0-or-later
  * @since     1.0.0
@@ -15,13 +15,13 @@
 
 declare( strict_types=1 );
 
-namespace Sugar\S3Signer\Tests;
+namespace SugarCommerce\S3Signer\Tests;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Sugar\S3Signer\ContentDisposition;
-use Sugar\S3Signer\Method;
-use Sugar\S3Signer\Signer;
+use SugarCommerce\S3Signer\ContentDisposition;
+use SugarCommerce\S3Signer\Method;
+use SugarCommerce\S3Signer\Signer;
 
 final class SignerTest extends TestCase {
 

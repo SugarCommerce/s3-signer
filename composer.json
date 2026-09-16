@@ -31,12 +31,12 @@
   },
   "autoload": {
     "psr-4": {
-      "Sugar\\S3Signer\\": "src/"
+      "SugarCommerce\\S3Signer\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "Sugar\\S3Signer\\Tests\\": "tests/"
+      "SugarCommerce\\S3Signer\\Tests\\": "tests/"
     }
   },
   "scripts": {

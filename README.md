@@ -18,7 +18,7 @@ The AWS SDK is ~15MB and pulls in Guzzle. If all you need is "give this customer
 ## Providers
 
 ```php
-use Sugar\S3Signer\Provider;
+use SugarCommerce\S3Signer\Provider;
 
 Provider::options();   // value => label, for a settings dropdown
 
@@ -64,7 +64,7 @@ composer require sugarcommerce/s3-signer
 ### Presigned download link
 
 ```php
-use Sugar\S3Signer\Signer;
+use SugarCommerce\S3Signer\Signer;
 
 $signer = new Signer(
     access_key: getenv( 'R2_ACCESS_KEY' ),
@@ -140,7 +140,7 @@ Parts are sorted and ETags normalised for you — double-quoted ETags are the us
 `ContentDisposition` is usable on its own:
 
 ```php
-use Sugar\S3Signer\ContentDisposition;
+use SugarCommerce\S3Signer\ContentDisposition;
 
 ContentDisposition::attachment( 'Naïve Café — Master.wav' );
 // attachment; filename="Naive Cafe - Master.wav";

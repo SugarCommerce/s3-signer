@@ -2,7 +2,7 @@
 /**
  * AWS Signature Version 4 signing for S3-compatible object storage.
  *
- * @package   Sugar\S3Signer
+ * @package   SugarCommerce\S3Signer
  * @copyright Copyright (c) 2026, ArrayPress Limited
  * @license   GPL-2.0-or-later
  * @since     1.0.0
@@ -10,7 +10,7 @@
 
 declare( strict_types=1 );
 
-namespace Sugar\S3Signer;
+namespace SugarCommerce\S3Signer;
 
 /**
  * Class Signer
@@ -36,7 +36,7 @@ namespace Sugar\S3Signer;
  *
  * Typical use:
  *
- *   use Sugar\S3Signer\Signer;
+ *   use SugarCommerce\S3Signer\Signer;
  *
  *   $signer = new Signer(
  *       access_key: $key,

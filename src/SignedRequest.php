@@ -2,7 +2,7 @@
 /**
  * The result of signing a request with SigV4 header authentication.
  *
- * @package   Sugar\S3Signer
+ * @package   SugarCommerce\S3Signer
  * @copyright Copyright (c) 2026, ArrayPress Limited
  * @license   GPL-2.0-or-later
  * @since     1.0.0
@@ -10,7 +10,7 @@
 
 declare( strict_types=1 );
 
-namespace Sugar\S3Signer;
+namespace SugarCommerce\S3Signer;
 
 /**
  * Class SignedRequest

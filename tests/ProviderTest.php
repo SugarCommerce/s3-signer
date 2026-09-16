@@ -2,7 +2,7 @@
 /**
  * S3-compatible providers.
  *
- * @package   Sugar\S3Signer
+ * @package   SugarCommerce\S3Signer
  * @copyright Copyright (c) 2026, ArrayPress Limited
  * @license   GPL-2.0-or-later
  * @since     1.0.0
@@ -10,14 +10,14 @@
 
 declare( strict_types=1 );
 
-namespace Sugar\S3Signer\Tests;
+namespace SugarCommerce\S3Signer\Tests;
 
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Sugar\S3Signer\AddressingStyle;
-use Sugar\S3Signer\Provider;
+use SugarCommerce\S3Signer\AddressingStyle;
+use SugarCommerce\S3Signer\Provider;
 
 #[CoversClass( Provider::class )]
 final class ProviderTest extends TestCase {
