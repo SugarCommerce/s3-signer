@@ -12,6 +12,8 @@ declare( strict_types=1 );
 
 namespace SugarCommerce\S3Signer;
 
+use SugarCommerce\S3Signer\Cors\Policy;
+
 /**
  * Class Signer
  *
@@ -528,6 +530,71 @@ final readonly class Signer {
 	 */
 	public function sign_put_object( string $bucket, string $key, string $body, string $mime_type = 'application/octet-stream' ): SignedRequest {
 		return $this->sign( Method::PUT, $bucket, $key, array(), $body, array( 'content-type' => $mime_type ) );
+	}
+
+	/**
+	 * Sign a read of the bucket's CORS configuration.
+	 *
+	 * A bucket with no configuration answers 404 with a
+	 * `NoSuchCORSConfiguration` body rather than an empty 200, so treat that
+	 * status as "none set" rather than as a failure.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param string $bucket Bucket name.
+	 *
+	 * @return SignedRequest
+	 */
+	public function sign_get_bucket_cors( string $bucket ): SignedRequest {
+		return $this->sign( Method::GET, $bucket, '', array( 'cors' => '' ) );
+	}
+
+	/**
+	 * Sign a replacement of the bucket's CORS configuration.
+	 *
+	 * PutBucketCors replaces the whole configuration; there is no way to add
+	 * one rule. Read the current policy first if you mean to keep any of it.
+	 *
+	 * Content-MD5 is sent because AWS requires it on this call specifically
+	 * and refuses the request without it. Other providers ignore it.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param string $bucket Bucket name.
+	 * @param Policy $policy The configuration to store.
+	 *
+	 * @return SignedRequest
+	 */
+	public function sign_put_bucket_cors( string $bucket, Policy $policy ): SignedRequest {
+		$body = $policy->to_xml();
+
+		return $this->sign(
+			Method::PUT,
+			$bucket,
+			'',
+			array( 'cors' => '' ),
+			$body,
+			array(
+				'content-type' => 'application/xml',
+				'content-md5'  => base64_encode( (string) hash( 'md5', $body, true ) ),
+			)
+		);
+	}
+
+	/**
+	 * Sign a removal of the bucket's CORS configuration.
+	 *
+	 * After this the bucket refuses every cross-origin request, so anything
+	 * uploading or reading from a browser stops working.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param string $bucket Bucket name.
+	 *
+	 * @return SignedRequest
+	 */
+	public function sign_delete_bucket_cors( string $bucket ): SignedRequest {
+		return $this->sign( Method::DELETE, $bucket, '', array( 'cors' => '' ) );
 	}
 
 	/**

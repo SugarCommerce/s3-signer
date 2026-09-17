@@ -11,6 +11,7 @@ The AWS SDK is ~15MB and pulls in Guzzle. If all you need is "give this customer
 - 🌍 **Internationalised filenames** — `Content-Disposition` that works in every script. `音乐样本包.wav` downloads correctly, and its ASCII fallback reads `yin le yang ben bao.wav` rather than `_____.wav`.
 - 🛡️ **Filename hardening** — path traversal, bidi display-spoofing, zero-width characters, header injection and quote-escaping all handled.
 - 📦 **Multipart uploads** — create, sign parts, complete, abort. Part sorting and ETag normalisation included.
+- 🔓 **Bucket CORS** — read, write and *check* the policy. `supports_multipart_upload()` answers the question a deploy actually needs: will a browser upload from this origin work?
 - 🧾 **Download naming** — rename a file at download time without touching the stored object.
 - 🚫 **Zero dependencies** — plain PHP. `ext-intl` is optional and only sharpens transliteration.
 - ⚡ **No I/O** — pure functions over credentials. Nothing to mock in your tests.
@@ -215,6 +216,52 @@ Pass a fixed `timestamp` to make signatures reproducible in tests. Leave it null
 ```php
 $signer = new Signer( $key, $secret, $endpoint, 'auto', timestamp: 1700000000 );
 ```
+
+### Bucket CORS
+
+Direct-to-browser uploads need a CORS policy on the bucket, and it is the
+setting people get wrong — usually not by leaving it off, which fails loudly,
+but by writing a rule that looks complete and is missing one line.
+
+```php
+use SugarCommerce\S3Signer\Cors\{Policy, Rule};
+
+$policy = Policy::for_browser_uploads( [ 'https://app.example.com' ] );
+
+$request = $signer->sign_put_bucket_cors( 'my-bucket', $policy );
+// PUT it with your HTTP client of choice.
+```
+
+Read the current one back, and ask it the question that matters:
+
+```php
+$request = $signer->sign_get_bucket_cors( 'my-bucket' );
+// GET it, then:
+$policy = Policy::from_xml( $body );   // '' or a 404 body is an empty policy
+
+$result = $policy->supports_multipart_upload( 'https://app.example.com' );
+
+$result['ok'];      // false
+$result['reason'];  // 'PUT is allowed but ETag is not exposed, so parts
+                    //  upload and the upload then fails at assembly.'
+```
+
+That is the failure worth naming. A multipart upload works like this: the
+browser PUTs each part, storage answers with that part's ETag, and the browser
+sends every ETag back to assemble the object. If the rule does not **expose**
+ETag, every part uploads successfully, the browser cannot read a single one of
+them, and the upload fails at the last step with an error that mentions neither
+CORS nor ETag. `Rule::browser_upload()` exists so you cannot write that rule by
+accident.
+
+Two more traps the types close:
+
+- S3 does no subdomain matching. `https://*.example.com` matches **nothing**.
+- `*` in `ExposeHeaders` is not honoured everywhere — S3 accepts it, R2
+  historically did not. Name the headers.
+
+`PutBucketCors` replaces the whole configuration; there is no way to add one
+rule. Read the current policy first if you mean to keep any of it.
 
 ## Testing
 
