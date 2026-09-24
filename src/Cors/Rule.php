@@ -31,7 +31,7 @@ final readonly class Rule {
 	/**
 	 * Methods S3 accepts in a CORS rule.
 	 */
-	public const METHODS = array( 'GET', 'PUT', 'POST', 'DELETE', 'HEAD' );
+	public const array METHODS = array( 'GET', 'PUT', 'POST', 'DELETE', 'HEAD' );
 
 	/**
 	 * Headers worth exposing for a readable object.
@@ -39,7 +39,7 @@ final readonly class Rule {
 	 * Without these on the rule the browser hides them from `fetch()` even
 	 * though the response carries them.
 	 */
-	public const READ_HEADERS = array( 'Content-Length', 'Content-Type', 'ETag', 'Last-Modified' );
+	public const array READ_HEADERS = array( 'Content-Length', 'Content-Type', 'ETag', 'Last-Modified' );
 
 	/**
 	 * @param array<int, string> $origins Origins the rule allows. `*` matches

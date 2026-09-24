@@ -59,12 +59,12 @@ final readonly class Signer {
 	/**
 	 * SigV4 algorithm identifier. First line of every string-to-sign.
 	 */
-	private const ALGORITHM = 'AWS4-HMAC-SHA256';
+	private const string ALGORITHM = 'AWS4-HMAC-SHA256';
 
 	/**
 	 * Service name in the credential scope. Always 's3' here.
 	 */
-	private const SERVICE = 's3';
+	private const string SERVICE = 's3';
 
 	/**
 	 * Payload placeholder for query-string signing.
@@ -72,12 +72,12 @@ final readonly class Signer {
 	 * Presigned URLs are handed to a browser, so the body cannot be
 	 * hashed ahead of time. S3 defines this literal for that case.
 	 */
-	private const UNSIGNED_PAYLOAD = 'UNSIGNED-PAYLOAD';
+	private const string UNSIGNED_PAYLOAD = 'UNSIGNED-PAYLOAD';
 
 	/**
 	 * Longest presigned-URL lifetime SigV4 permits, in seconds (7 days).
 	 */
-	public const MAX_EXPIRES = 604800;
+	public const int MAX_EXPIRES = 604800;
 
 	/**
 	 * Normalised endpoint host, without scheme, port-path or trailing slash.

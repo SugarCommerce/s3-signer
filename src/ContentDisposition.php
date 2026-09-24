@@ -52,7 +52,7 @@ final readonly class ContentDisposition {
 	/**
 	 * Name used when nothing usable survives sanitisation.
 	 */
-	private const FALLBACK = 'download';
+	private const string FALLBACK = 'download';
 
 	/**
 	 * Maximum filename length in bytes.
@@ -61,7 +61,7 @@ final readonly class ContentDisposition {
 	 * meaningfully under that leaves room for a browser's " (1)"
 	 * de-duplication suffix.
 	 */
-	private const MAX_BYTES = 200;
+	private const int MAX_BYTES = 200;
 
 	/**
 	 * Build a complete `Content-Disposition: attachment` value.

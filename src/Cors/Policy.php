@@ -31,7 +31,7 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	/**
 	 * Most providers cap a bucket at 100 rules.
 	 */
-	public const MAX_RULES = 100;
+	public const int MAX_RULES = 100;
 
 	/**
 	 * @param array<int, Rule> $rules The rules, in the order S3 evaluates them.
@@ -267,6 +267,7 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	 *
 	 * @return int
 	 */
+	#[\Override]
 	public function count(): int {
 		return count( $this->rules );
 	}
@@ -278,6 +279,7 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	 *
 	 * @return \ArrayIterator<int, Rule>
 	 */
+	#[\Override]
 	public function getIterator(): \ArrayIterator {
 		return new \ArrayIterator( $this->rules );
 	}
