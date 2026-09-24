@@ -344,6 +344,47 @@ final readonly class Signer {
 	}
 
 	/**
+	 * Mint an inline GET URL that stays the same for a while, so a browser
+	 * can cache what it fetched.
+	 *
+	 * A presigned URL normally carries the second it was signed, so every
+	 * page load mints a new one and a browser can never reuse what it
+	 * fetched last time — each view is another billable read. Signed at the
+	 * start of the current window instead, the URL is identical for the whole
+	 * window, and the response says it may be kept that long.
+	 *
+	 * Valid for two windows from the start of this one, so a copy fetched
+	 * in the last second of the window is still fetchable for a full window
+	 * after — and never cached past the moment the URL stops working.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param string   $bucket       Bucket name.
+	 * @param string   $key          Object key.
+	 * @param int      $window       Seconds the URL stays the same, at most
+	 *                               half of MAX_EXPIRES.
+	 * @param string   $content_type What to call it, e.g. `image/png`.
+	 * @param int|null $now          Unix time, for tests. Defaults to the
+	 *                               signer's fixed time, then the clock.
+	 *
+	 * @return string Fully-qualified HTTPS URL.
+	 */
+	public function presign_cacheable( string $bucket, string $key, int $window, string $content_type, ?int $now = null ): string {
+		if ( $window < 1 || 2 * $window > self::MAX_EXPIRES ) {
+			throw new \InvalidArgumentException( 'A cacheable URL window must be between 1 second and half of seven days.' );
+		}
+
+		$now   ??= $this->timestamp ?? time();
+		$signer = clone( $this, array( 'timestamp' => intdiv( $now, $window ) * $window ) );
+
+		return $signer->presign( Method::GET, $bucket, $key, array(
+			'response-content-type'        => $content_type,
+			'response-content-disposition' => 'inline',
+			'response-cache-control'       => 'private, max-age=' . $window,
+		), 2 * $window );
+	}
+
+	/**
 	 * The scheme and host requests for a bucket go to.
 	 *
 	 * For a Content-Security-Policy: a page that plays an object from a

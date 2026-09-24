@@ -355,6 +355,56 @@ final class SignerTest extends TestCase {
 		$this->assertNotSame( substr( $audio, -64 ), substr( $html, -64 ) );
 	}
 
+	/* ─── Cacheable (1.3.0) ─────────────────────────────────────────── */
+
+	/**
+	 * The whole point: two page loads in the same hour produce the same URL,
+	 * so the browser's cached copy is used and storage is not asked again.
+	 */
+	public function test_a_cacheable_url_is_the_same_all_window(): void {
+		$signer = $this->signer( null );
+		$start  = 1_760_000_400; // A multiple of 3600.
+
+		$first = $signer->presign_cacheable( 'files', 'a/b.png', 3600, 'image/png', $start );
+		$last  = $signer->presign_cacheable( 'files', 'a/b.png', 3600, 'image/png', $start + 3599 );
+		$next  = $signer->presign_cacheable( 'files', 'a/b.png', 3600, 'image/png', $start + 3600 );
+
+		$this->assertSame( $first, $last );
+		$this->assertNotSame( $first, $next );
+	}
+
+	public function test_a_cacheable_url_says_how_long_to_keep_it_and_outlives_that(): void {
+		$url = $this->signer( null )->presign_cacheable( 'files', 'k', 3600, 'image/webp', 1_760_000_400 + 10 );
+
+		parse_str( (string) parse_url( $url, PHP_URL_QUERY ), $query );
+
+		$this->assertSame( 'private, max-age=3600', $query['response-cache-control'] );
+		$this->assertSame( 'image/webp', $query['response-content-type'] );
+		$this->assertSame( 'inline', $query['response-content-disposition'] );
+		$this->assertSame( '7200', $query['X-Amz-Expires'] );
+		$this->assertSame( gmdate( 'Ymd\THis\Z', 1_760_000_400 ), $query['X-Amz-Date'], 'Signed at the start of the window.' );
+	}
+
+	/**
+	 * The cache instruction is signed, so nobody can edit a copied URL into
+	 * one that tells a shared cache to keep a private file.
+	 */
+	public function test_the_cache_instruction_is_signed(): void {
+		$url = $this->signer( null )->presign_cacheable( 'files', 'k', 3600, 'image/png', 1_760_000_400 );
+
+		$this->assertSame( $url, $this->signer( null )->presign_cacheable( 'files', 'k', 3600, 'image/png', 1_760_000_400 ) );
+		$this->assertNotSame(
+			substr( $url, -64 ),
+			substr( $this->signer( null )->presign_cacheable( 'files', 'k', 1800, 'image/png', 1_760_000_400 ), -64 )
+		);
+	}
+
+	public function test_a_window_too_long_to_sign_twice_is_refused(): void {
+		$this->expectException( \InvalidArgumentException::class );
+
+		$this->signer()->presign_cacheable( 'files', 'k', 4 * 86400, 'image/png' );
+	}
+
 	public function test_origin_is_where_urls_for_the_bucket_point(): void {
 		$signer = $this->signer();
 
