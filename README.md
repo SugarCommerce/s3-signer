@@ -136,6 +136,22 @@ $request = $signer->sign_complete_multipart_upload( 'my-bucket', 'big/file.zip',
 
 Parts are sorted and ETags normalised for you — double-quoted ETags are the usual cause of a `MalformedXML` rejection here.
 
+### Playing a file in the browser
+
+```php
+$url = $signer->presign_inline( 'files', 'a8f3c2.bin', 3600, 'audio/mpeg' );
+```
+
+For an `<audio>` or `<video>` element: the response is typed and inline whatever the object was uploaded as. Long enough for the range requests a player makes while it seeks. Both values are inside the signature. For a Content-Security-Policy `media-src`, `$signer->origin( 'files' )` is where those URLs point.
+
+### Copying between buckets
+
+```php
+$request = $signer->sign_copy_object( 'private', 'a8f3c2.wav', 'public', 'previews/a8f3c2.wav', 'audio/wav', 'public, max-age=31536000, immutable' );
+```
+
+The copy happens inside the provider, with nothing passing through PHP. Metadata is replaced, so a copy put in a public bucket can have cache headers the original never had.
+
 ### Filenames
 
 `ContentDisposition` is usable on its own:

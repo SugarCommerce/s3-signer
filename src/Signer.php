@@ -316,6 +316,50 @@ final readonly class Signer {
 	}
 
 	/**
+	 * Mint a presigned GET URL that plays or shows in the browser.
+	 *
+	 * The counterpart to presign_get() with a filename: that one makes the
+	 * browser save the object, this one makes it render it. An `<audio>` or
+	 * `<video>` element needs a content type it recognises, and an object
+	 * uploaded as `application/octet-stream` has none — so the type is set
+	 * on the response rather than on the object, the same way the filename
+	 * is.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param string $bucket          Bucket name.
+	 * @param string $key             Object key.
+	 * @param int    $expires_seconds Validity window. Long enough for the
+	 *                                range requests a media element makes
+	 *                                while it plays and seeks.
+	 * @param string $content_type    What to call it, e.g. `audio/mpeg`.
+	 *
+	 * @return string Fully-qualified HTTPS URL.
+	 */
+	public function presign_inline( string $bucket, string $key, int $expires_seconds, string $content_type ): string {
+		return $this->presign( Method::GET, $bucket, $key, array(
+			'response-content-type'        => $content_type,
+			'response-content-disposition' => 'inline',
+		), $expires_seconds );
+	}
+
+	/**
+	 * The scheme and host requests for a bucket go to.
+	 *
+	 * For a Content-Security-Policy: a page that plays an object from a
+	 * presigned URL has to name where that URL points.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param string $bucket Bucket name.
+	 *
+	 * @return string e.g. `https://files.acct.r2.cloudflarestorage.com`.
+	 */
+	public function origin( string $bucket ): string {
+		return 'https://' . $this->host_for( $bucket );
+	}
+
+	/**
 	 * Mint a presigned PUT URL for a direct browser-to-storage upload.
 	 *
 	 * The bytes never pass through PHP, so upload size is bounded by the
@@ -530,6 +574,51 @@ final readonly class Signer {
 	 */
 	public function sign_put_object( string $bucket, string $key, string $body, string $mime_type = 'application/octet-stream' ): SignedRequest {
 		return $this->sign( Method::PUT, $bucket, $key, array(), $body, array( 'content-type' => $mime_type ) );
+	}
+
+	/**
+	 * Sign a server-side copy from one object to another.
+	 *
+	 * The bytes move inside the storage provider and never pass through
+	 * PHP: one request whatever the size. Both buckets must be reachable
+	 * with these credentials — for R2, the same account.
+	 *
+	 * The metadata is replaced rather than copied, which is what lets a copy
+	 * published to a public bucket carry long-lived cache headers the
+	 * private original never had.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param string $source_bucket Bucket to copy from.
+	 * @param string $source_key    Object to copy.
+	 * @param string $bucket        Bucket to copy into.
+	 * @param string $key           Object to create.
+	 * @param string $content_type  Content-Type for the copy.
+	 * @param string $cache_control Cache-Control for the copy, or ''.
+	 *
+	 * @return SignedRequest
+	 */
+	public function sign_copy_object(
+		string $source_bucket,
+		string $source_key,
+		string $bucket,
+		string $key,
+		string $content_type = 'application/octet-stream',
+		string $cache_control = ''
+	): SignedRequest {
+		$headers = array(
+			// Each segment encoded, the slashes between them kept: the
+			// source is a path, and an encoded slash names a different key.
+			'x-amz-copy-source'        => '/' . $source_bucket . '/' . implode( '/', array_map( 'rawurlencode', explode( '/', ltrim( $source_key, '/' ) ) ) ),
+			'x-amz-metadata-directive' => 'REPLACE',
+			'content-type'             => $content_type,
+		);
+
+		if ( '' !== $cache_control ) {
+			$headers['cache-control'] = $cache_control;
+		}
+
+		return $this->sign( Method::PUT, $bucket, $key, array(), '', $headers );
 	}
 
 	/**

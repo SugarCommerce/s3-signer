@@ -329,4 +329,46 @@ final class SignerTest extends TestCase {
 		$this->assertFalse( Method::DELETE->has_body() );
 		$this->assertFalse( Method::HEAD->has_body() );
 	}
+
+	/* ─── Inline, origin and copy (1.2.0) ───────────────────────────── */
+
+	public function test_presign_inline_names_the_type_and_asks_to_render(): void {
+		$url = $this->signer()->presign_inline( 'files', 'a/b.bin', 3600, 'audio/mpeg' );
+
+		parse_str( (string) parse_url( $url, PHP_URL_QUERY ), $query );
+
+		$this->assertSame( 'audio/mpeg', $query['response-content-type'] );
+		$this->assertSame( 'inline', $query['response-content-disposition'] );
+		$this->assertSame( '3600', $query['X-Amz-Expires'] );
+		$this->assertMatchesRegularExpression( '/^[0-9a-f]{64}$/', $query['X-Amz-Signature'] );
+	}
+
+	/**
+	 * The type is inside the signature: changing it in a copied URL must
+	 * break it, or the URL could be made to serve anything as HTML.
+	 */
+	public function test_the_inline_type_is_signed(): void {
+		$audio = $this->signer()->presign_inline( 'files', 'k', 60, 'audio/mpeg' );
+		$html  = $this->signer()->presign_inline( 'files', 'k', 60, 'text/html' );
+
+		// The signature is the last query parameter, 64 hex characters.
+		$this->assertNotSame( substr( $audio, -64 ), substr( $html, -64 ) );
+	}
+
+	public function test_origin_is_where_urls_for_the_bucket_point(): void {
+		$signer = $this->signer();
+
+		$this->assertStringStartsWith( $signer->origin( 'files' ) . '/', $signer->presign_get( 'files', 'k', 60 ) );
+	}
+
+	public function test_a_copy_names_its_source_and_replaces_metadata(): void {
+		$request = $this->signer()->sign_copy_object( 'private', 'acct/live/ab cd.wav', 'public', 'p/acct/ab.wav', 'audio/wav', 'public, max-age=31536000, immutable' );
+
+		$this->assertSame( 'PUT', $request->method->value );
+		$this->assertSame( '/private/acct/live/ab%20cd.wav', $request->headers['x-amz-copy-source'] );
+		$this->assertSame( 'REPLACE', $request->headers['x-amz-metadata-directive'] );
+		$this->assertSame( 'audio/wav', $request->headers['content-type'] );
+		$this->assertSame( 'public, max-age=31536000, immutable', $request->headers['cache-control'] );
+		$this->assertStringContainsString( 'x-amz-copy-source', $request->headers['Authorization'] ?? $request->headers['authorization'] ?? '' );
+	}
 }
