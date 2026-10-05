@@ -203,6 +203,38 @@ final class CorsTest extends TestCase {
 		$this->assertStringContainsString( 'ETag', $result['reason'] );
 	}
 
+	public function test_every_origin_has_to_be_supported(): void {
+		$policy = Policy::for_browser_uploads( array( self::ORIGIN ) );
+
+		$this->assertTrue( $policy->supports_multipart_upload_from( array( self::ORIGIN ) )['ok'] );
+
+		$result = $policy->supports_multipart_upload_from( array( self::ORIGIN, 'https://second.test' ) );
+
+		$this->assertFalse( $result['ok'] );
+		$this->assertStringContainsString( 'https://second.test', $result['reason'] );
+	}
+
+	public function test_no_origins_to_check_is_not_a_pass(): void {
+		$this->assertFalse( Policy::for_browser_uploads( array( self::ORIGIN ) )->supports_multipart_upload_from( array() )['ok'] );
+	}
+
+	/* ─── Console JSON (1.3.0) ──────────────────────────────────────── */
+
+	public function test_the_console_json_is_a_list_of_rules_without_ids(): void {
+		$rules = json_decode( ( new Policy( array( Rule::browser_upload( array( self::ORIGIN ) ) ) ) )->to_console_json(), true );
+
+		$this->assertIsList( $rules );
+		$this->assertCount( 1, $rules );
+		$this->assertArrayNotHasKey( 'ID', $rules[0] );
+		$this->assertSame( array( self::ORIGIN ), $rules[0]['AllowedOrigins'] );
+		$this->assertContains( 'PUT', $rules[0]['AllowedMethods'] );
+		$this->assertContains( 'ETag', $rules[0]['ExposeHeaders'] );
+	}
+
+	public function test_the_console_json_keeps_urls_readable(): void {
+		$this->assertStringContainsString( '"https://', Policy::for_browser_uploads( array( self::ORIGIN ) )->to_console_json() );
+	}
+
 	/* ─── XML ───────────────────────────────────────────────────────── */
 
 	public function test_the_xml_carries_every_field(): void {

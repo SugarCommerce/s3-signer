@@ -201,6 +201,39 @@ enum Provider: string {
 	}
 
 	/**
+	 * Whether a host is this provider's own endpoint.
+	 *
+	 * The check for an application that connects to buckets other people
+	 * chose. Their requests go to the endpoint host, so a host they could
+	 * steer is one they control — pointed at your own network, or at a
+	 * server that shows your scanner one file and their buyers another. A
+	 * host built by endpoint() from a region and account id that are plain
+	 * labels is the provider's, and this says so whatever endpoint() does
+	 * with an edge case. MinIO and Other have no official host, so nothing
+	 * passes for them.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param string $host Host, no scheme or port.
+	 *
+	 * @return bool
+	 */
+	public function is_own_endpoint( string $host ): bool {
+		$pattern = match ( $this ) {
+			self::R2           => '/^[a-z0-9]{8,64}\.r2\.cloudflarestorage\.com$/',
+			self::Aws          => '/^s3(\.[a-z0-9-]+)?\.amazonaws\.com$/',
+			self::Backblaze    => '/^s3\.[a-z0-9-]+\.backblazeb2\.com$/',
+			self::DigitalOcean => '/^[a-z0-9-]+\.digitaloceanspaces\.com$/',
+			self::Linode       => '/^[a-z0-9-]+\.linodeobjects\.com$/',
+			self::Wasabi       => '/^s3\.[a-z0-9-]+\.wasabisys\.com$/',
+			self::Scaleway     => '/^s3\.[a-z0-9-]+\.scw\.cloud$/',
+			self::MinIO, self::Other => null,
+		};
+
+		return null !== $pattern && 1 === preg_match( $pattern, $host );
+	}
+
+	/**
 	 * Every provider as `value => label`, for a settings dropdown.
 	 *
 	 * @since 1.0.0

@@ -136,6 +136,14 @@ $request = $signer->sign_complete_multipart_upload( 'my-bucket', 'big/file.zip',
 
 Parts are sorted and ETags normalised for you — double-quoted ETags are the usual cause of a `MalformedXML` rejection here.
 
+To resume an upload, ask storage which parts it actually kept rather than trusting the browser's memory of what it sent:
+
+```php
+$request = $signer->sign_list_parts( 'my-bucket', 'big/file.zip', $upload_id );                 // first 1,000
+$request = $signer->sign_list_parts( 'my-bucket', 'big/file.zip', $upload_id, marker: 1000 );   // the next page
+// → execute; a ListPartsResult with IsTruncated / NextPartNumberMarker
+```
+
 ### Playing a file in the browser
 
 ```php
@@ -197,6 +205,14 @@ Signer::digitalocean( $key, $secret, 'ams3' );
 Signer::minio( $key, $secret, 'localhost:9000' );
 ```
 
+Connecting to a bucket **someone else** chose? Their requests go to the endpoint host, so build it from the provider, region and account id — never take a typed one — and check it is the provider's own:
+
+```php
+$host = Provider::Backblaze->endpoint( $region );
+Provider::Backblaze->is_own_endpoint( $host );   // false for anything not s3.<label>.backblazeb2.com
+Provider::MinIO->is_own_endpoint( $host );       // always false: there is no official host
+```
+
 ### Addressing style
 
 Providers disagree about where the bucket name belongs, and it isn't cosmetic — the choice changes both the `Host` header and the canonical URI, so signing one way and requesting the other fails with an opaque `SignatureDoesNotMatch`.
@@ -224,6 +240,8 @@ $signer = new Signer(
 ```
 
 Virtual-hosted addressing puts the bucket into a hostname, so bucket names are validated as DNS labels — an uppercase, underscored or dotted bucket is rejected rather than signed into a host that can't resolve or whose certificate won't match.
+
+For a name typed into a form, `AddressingStyle::is_valid_bucket()` says whether S3 would accept it at all (3–63 lowercase letters, digits, dots and hyphens), and `is_dns_compatible()` whether it also works virtual-hosted.
 
 ### Deterministic signing
 
@@ -279,6 +297,20 @@ Two more traps the types close:
 `PutBucketCors` replaces the whole configuration; there is no way to add one
 rule. Read the current policy first if you mean to keep any of it.
 
+An uploader served from more than one origin needs every one of them covered:
+
+```php
+$policy->supports_multipart_upload_from( [ 'https://app.example.com', 'https://example.com' ] );
+```
+
+And for a bucket you hold only object keys for — a customer's own — you cannot
+set the policy; its owner pastes it. `to_console_json()` gives the rules in the
+JSON list the R2 and S3 dashboards take, without the `ID`s some refuse:
+
+```php
+echo ( new Policy( [ Rule::browser_upload( $origins ) ] ) )->to_console_json();
+```
+
 ## Testing
 
 ```bash
@@ -286,7 +318,7 @@ composer install
 composer test
 ```
 
-69 tests. The signature vectors are golden values verified byte-for-byte against a signer that has been serving production R2 downloads — a change to any of them means every presigned URL your application has issued would stop working.
+203 tests. The signature vectors are golden values verified byte-for-byte against a signer that has been serving production R2 downloads — a change to any of them means every presigned URL your application has issued would stop working.
 
 ## License
 

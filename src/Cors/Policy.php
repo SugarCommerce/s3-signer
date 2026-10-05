@@ -239,6 +239,66 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	}
 
 	/**
+	 * Will a browser multipart upload work from every one of these origins?
+	 *
+	 * An uploader is usually served from more than one place — its own
+	 * hostname and a shared one, say — and a policy that covers one of them
+	 * fails for whoever happens to use the other. Asked per origin, in order,
+	 * stopping at the first that will not work.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param array<int, string> $origins Origins the uploader is served from.
+	 *
+	 * @return array{ok: bool, reason: string} The first failing origin's
+	 *                                         reason. No origins at all is
+	 *                                         not a pass.
+	 */
+	public function supports_multipart_upload_from( array $origins ): array {
+		if ( array() === $origins ) {
+			return array( 'ok' => false, 'reason' => 'No origins were given to check.' );
+		}
+
+		foreach ( $origins as $origin ) {
+			$result = $this->supports_multipart_upload( (string) $origin );
+
+			if ( ! $result['ok'] ) {
+				return $result;
+			}
+		}
+
+		return array( 'ok' => true, 'reason' => '' );
+	}
+
+	/**
+	 * The policy as the JSON a provider's dashboard takes.
+	 *
+	 * For a bucket whose settings you cannot write — someone else's, reached
+	 * with keys scoped to objects — the policy has to be pasted by its owner,
+	 * and the R2 and S3 consoles take a JSON list of rules with exactly the
+	 * PutBucketCors field names. The `ID` is left out: it is a name for
+	 * reading a configuration back, and some consoles refuse a field they do
+	 * not know.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @return string Pretty-printed JSON.
+	 */
+	public function to_console_json(): string {
+		$rules = array();
+
+		foreach ( $this->rules as $rule ) {
+			$shape = $rule->to_array();
+
+			unset( $shape['ID'] );
+
+			$rules[] = $shape;
+		}
+
+		return (string) json_encode( $rules, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+	}
+
+	/**
 	 * Every origin any rule allows.
 	 *
 	 * @since 1.1.0

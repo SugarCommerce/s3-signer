@@ -138,4 +138,38 @@ final class ProviderTest extends TestCase {
 		$this->assertSame( 'Cloudflare R2', $options['r2'] );
 		$this->assertSame( 'Linode Object Storage', $options['linode'] );
 	}
+
+	/* ─── Official endpoints (1.3.0) ────────────────────────────────── */
+
+	public function test_every_built_endpoint_is_the_provider_s_own(): void {
+		foreach ( Provider::cases() as $provider ) {
+			if ( $provider->needs_endpoint() ) {
+				continue;
+			}
+
+			$host = $provider->endpoint( account_id: 'abcdef0123456789' );
+
+			$this->assertTrue( $provider->is_own_endpoint( $host ), $provider->value . ': ' . $host );
+		}
+	}
+
+	#[DataProvider( 'foreign_hosts' )]
+	public function test_a_host_that_is_not_the_provider_s_is_refused( Provider $provider, string $host ): void {
+		$this->assertFalse( $provider->is_own_endpoint( $host ) );
+	}
+
+	/**
+	 * @return array<string, array{0: Provider, 1: string}>
+	 */
+	public static function foreign_hosts(): array {
+		return array(
+			'another provider'    => array( Provider::R2, 's3.amazonaws.com' ),
+			'a lookalike'         => array( Provider::Aws, 's3.amazonaws.com.evil.test' ),
+			'a dotted region'     => array( Provider::Backblaze, 's3.us.west.backblazeb2.com' ),
+			'an address'          => array( Provider::DigitalOcean, '127.0.0.1' ),
+			'minio has no host'   => array( Provider::MinIO, 'minio.example.com' ),
+			'other has no host'   => array( Provider::Other, 's3.amazonaws.com' ),
+			'a port smuggled in'  => array( Provider::Wasabi, 's3.eu-1.wasabisys.com:8080' ),
+		);
+	}
 }

@@ -297,6 +297,24 @@ final class SignerTest extends TestCase {
 		$this->assertStringContainsString( 'uploadId=UP-1', $request->url );
 	}
 
+	public function test_list_parts_is_a_signed_get_for_that_upload(): void {
+		$request = $this->signer()->sign_list_parts( 'b', 'k', 'UP-1' );
+
+		$this->assertSame( Method::GET, $request->method );
+		$this->assertStringContainsString( 'uploadId=UP-1', $request->url );
+		$this->assertStringContainsString( 'max-parts=1000', $request->url );
+		$this->assertStringNotContainsString( 'part-number-marker', $request->url, 'The first page has no marker.' );
+		$this->assertStringStartsWith( 'AWS4-HMAC-SHA256', (string) $request->header( 'Authorization' ) );
+	}
+
+	public function test_list_parts_pages_by_marker_and_clamps_the_page(): void {
+		$request = $this->signer()->sign_list_parts( 'b', 'k', 'UP-1', 50_000, 1000 );
+
+		$this->assertStringContainsString( 'part-number-marker=1000', $request->url );
+		$this->assertStringContainsString( 'max-parts=1000', $request->url );
+		$this->assertStringContainsString( 'max-parts=1&', $this->signer()->sign_list_parts( 'b', 'k', 'UP-1', 0 )->url );
+	}
+
 	/* ─── Content-Disposition passthrough ───────────────────────────── */
 
 	public function test_content_disposition_delegates_to_the_dedicated_class(): void {

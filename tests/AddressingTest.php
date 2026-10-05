@@ -103,6 +103,30 @@ final class AddressingTest extends TestCase {
 		$this->assertStringContainsString( 'my.bucket', $signer->presign_get( 'my.bucket', 'k', 60 ) );
 	}
 
+	#[DataProvider( 'bucket_names' )]
+	public function test_a_bucket_name_is_valid_only_in_s3_s_shape( string $bucket, bool $valid ): void {
+		$this->assertSame( $valid, AddressingStyle::is_valid_bucket( $bucket ) );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: bool}>
+	 */
+	public static function bucket_names(): array {
+		return array(
+			'plain'            => array( 'media-files', true ),
+			'dotted'           => array( 'my.bucket', true ),
+			'three characters' => array( 'abc', true ),
+			'sixty-three'      => array( str_repeat( 'a', 63 ), true ),
+			'too short'        => array( 'ab', false ),
+			'too long'         => array( str_repeat( 'a', 64 ), false ),
+			'upper case'       => array( 'Media', false ),
+			'leading hyphen'   => array( '-media', false ),
+			'trailing dot'     => array( 'media.', false ),
+			'a path'           => array( 'media/../x', false ),
+			'a space'          => array( 'my bucket', false ),
+		);
+	}
+
 	/* ─── Provider factories ────────────────────────────────────────── */
 
 	public function test_r2_factory_builds_the_account_endpoint(): void {

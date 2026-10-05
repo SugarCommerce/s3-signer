@@ -889,6 +889,40 @@ final readonly class Signer {
 		return $this->sign( Method::DELETE, $bucket, $key, array( 'uploadId' => $upload_id ) );
 	}
 
+	/**
+	 * Sign a request for the parts a multipart upload already holds
+	 * (ListParts).
+	 *
+	 * What resuming an upload needs. A browser that reloads halfway through
+	 * remembers which parts it sent, but storage decides what counts: a part
+	 * the browser saw finish may not have been kept, and one it never heard
+	 * back about may have been. The answer is a `ListPartsResult`, paged by
+	 * part number.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param string $bucket    Bucket name.
+	 * @param string $key       Object key being assembled.
+	 * @param string $upload_id Upload id from the create call.
+	 * @param int    $max_parts Parts per page, clamped to S3's 1–1,000.
+	 * @param int    $marker    List the parts after this part number; 0 for
+	 *                          the first page.
+	 *
+	 * @return SignedRequest
+	 */
+	public function sign_list_parts( string $bucket, string $key, string $upload_id, int $max_parts = 1000, int $marker = 0 ): SignedRequest {
+		$query = array(
+			'uploadId'  => $upload_id,
+			'max-parts' => (string) max( 1, min( 1000, $max_parts ) ),
+		);
+
+		if ( $marker > 0 ) {
+			$query['part-number-marker'] = (string) $marker;
+		}
+
+		return $this->sign( Method::GET, $bucket, $key, $query );
+	}
+
 	/* ─── Helpers ───────────────────────────────────────────────────── */
 
 	/**
