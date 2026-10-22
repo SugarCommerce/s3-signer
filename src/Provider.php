@@ -177,17 +177,6 @@ enum Provider: string {
 	public function endpoint( string $region = '', string $account_id = '', string $endpoint = '' ): string {
 		$region = '' !== trim( $region ) ? trim( $region ) : $this->default_region();
 
-		// Both are spliced into a hostname. A region of `evil.example/` would
-		// make the host `s3.evil.example/.amazonaws.com`, which everything
-		// downstream reads as `s3.evil.example`.
-		if ( 1 !== preg_match( '/^[A-Za-z0-9\-]+$/', $region ) ) {
-			throw new \InvalidArgumentException( 'A region is letters, digits and hyphens only.' );
-		}
-
-		if ( '' !== trim( $account_id ) && 1 !== preg_match( '/^[A-Za-z0-9]+$/', trim( $account_id ) ) ) {
-			throw new \InvalidArgumentException( 'An account id is letters and digits only.' );
-		}
-
 		if ( $this->needs_endpoint() ) {
 			$host = preg_replace( '#^https?://#i', '', trim( $endpoint ) );
 			$host = rtrim( (string) $host, '/' );
@@ -199,12 +188,24 @@ enum Provider: string {
 			return $host;
 		}
 
+		// The account id and the region are spliced into a hostname, so each
+		// has to be one DNS label. A region of `evil.example/` would make the
+		// host `s3.evil.example/.amazonaws.com`, which everything downstream
+		// reads as `s3.evil.example`.
 		if ( self::R2 === $this ) {
 			if ( '' === trim( $account_id ) ) {
 				throw new \InvalidArgumentException( 'Cloudflare R2 needs an account id.' );
 			}
 
+			if ( ! self::is_label( trim( $account_id ) ) ) {
+				throw new \InvalidArgumentException( 'An account id is letters, digits and hyphens only.' );
+			}
+
 			return trim( $account_id ) . '.r2.cloudflarestorage.com';
+		}
+
+		if ( ! self::is_label( $region ) ) {
+			throw new \InvalidArgumentException( 'A region is letters, digits and hyphens only.' );
 		}
 
 		return match ( $this ) {
@@ -282,6 +283,20 @@ enum Provider: string {
 		};
 
 		return null !== $pattern && 1 === preg_match( $pattern, $host );
+	}
+
+	/**
+	 * Whether a value is a single DNS label: letters, digits and hyphens,
+	 * 1 to 63 of them.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param string $value Region or account id.
+	 *
+	 * @return bool
+	 */
+	public static function is_label( string $value ): bool {
+		return 1 === preg_match( '/^[A-Za-z0-9\-]{1,63}$/', $value );
 	}
 
 	/**

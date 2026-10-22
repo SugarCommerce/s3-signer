@@ -160,8 +160,8 @@ final readonly class Signer {
 	 *
 	 * @return self
 	 *
-	 * @throws \InvalidArgumentException On an account id that is not plain
-	 *                                   letters and digits, or as the
+	 * @throws \InvalidArgumentException On an account id that is not a
+	 *                                   single DNS label, or as the
 	 *                                   constructor does.
 	 */
 	public static function r2(
@@ -173,8 +173,8 @@ final readonly class Signer {
 		// The id becomes the first label of the host. Anything but a plain
 		// label — `evil.example/` — would move the host somewhere else, and
 		// the signed requests with it.
-		if ( 1 !== preg_match( '/^[A-Za-z0-9]+$/', $account_id ) ) {
-			throw new \InvalidArgumentException( 'A Cloudflare account id is letters and digits only.' );
+		if ( ! Provider::is_label( $account_id ) ) {
+			throw new \InvalidArgumentException( 'A Cloudflare account id is letters, digits and hyphens only.' );
 		}
 
 		return new self(

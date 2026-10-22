@@ -246,7 +246,7 @@ For a name typed into a form, `AddressingStyle::is_valid_bucket()` says whether 
 ### What gets refused
 
 - **Dot segments in a bucket or key.** `uploads/u1/../u2/avatar.png` is a legal S3 key, but browsers, curl, proxies and some gateways collapse it into `uploads/u2/avatar.png`. A key built from a user's filename under a per-user prefix would otherwise sign a path into somebody else's. `.` and `..` *segments* throw; dots inside a segment (`.hidden`, `a..b`) are fine.
-- **A region or account id that is not a plain label.** Both are spliced into the endpoint host, and `evil.example/` would move the host.
+- **A region or account id that is not a single DNS label** (letters, digits, hyphens). Both are spliced into the endpoint host, and `evil.example/` would move the host.
 - **A line break in an inline content type.** It becomes a response header.
 
 A dumped `Signer` (`var_dump()`, `print_r()`) shows its endpoint, region and addressing, never its keys. The signing itself is checked against AWS's own published SigV4 examples in the test suite.

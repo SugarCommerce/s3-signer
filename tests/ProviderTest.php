@@ -195,4 +195,14 @@ final class ProviderTest extends TestCase {
 			'r2 dotted id'    => array( Provider::R2, '', 'a.b' ),
 		);
 	}
+
+	/**
+	 * Only what is spliced into the host is checked, and only for being one
+	 * label: a hyphenated id passes, and a MinIO ignores both fields.
+	 */
+	public function test_plain_labels_and_unused_fields_still_pass(): void {
+		$this->assertSame( 'sugarcart-test-account.r2.cloudflarestorage.com', Provider::R2->endpoint( '', 'sugarcart-test-account' ) );
+		$this->assertSame( 's3.eu-west-2.amazonaws.com', Provider::Aws->endpoint( 'eu-west-2', 'ignored.value/' ) );
+		$this->assertSame( 'minio.local:9000', Provider::MinIO->endpoint( '', 'anything', 'minio.local:9000' ) );
+	}
 }
