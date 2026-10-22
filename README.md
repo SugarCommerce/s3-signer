@@ -243,6 +243,14 @@ Virtual-hosted addressing puts the bucket into a hostname, so bucket names are v
 
 For a name typed into a form, `AddressingStyle::is_valid_bucket()` says whether S3 would accept it at all (3–63 lowercase letters, digits, dots and hyphens), and `is_dns_compatible()` whether it also works virtual-hosted.
 
+### What gets refused
+
+- **Dot segments in a bucket or key.** `uploads/u1/../u2/avatar.png` is a legal S3 key, but browsers, curl, proxies and some gateways collapse it into `uploads/u2/avatar.png`. A key built from a user's filename under a per-user prefix would otherwise sign a path into somebody else's. `.` and `..` *segments* throw; dots inside a segment (`.hidden`, `a..b`) are fine.
+- **A region or account id that is not a plain label.** Both are spliced into the endpoint host, and `evil.example/` would move the host.
+- **A line break in an inline content type.** It becomes a response header.
+
+A dumped `Signer` (`var_dump()`, `print_r()`) shows its endpoint, region and addressing, never its keys. The signing itself is checked against AWS's own published SigV4 examples in the test suite.
+
 ### Deterministic signing
 
 Pass a fixed `timestamp` to make signatures reproducible in tests. Leave it null in production or every signature shares one eventually-expired date.

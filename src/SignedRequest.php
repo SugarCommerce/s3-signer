@@ -61,7 +61,7 @@ final readonly class SignedRequest {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @return string[]
+	 * @return list<string>
 	 */
 	public function curl_headers(): array {
 		$out = array();

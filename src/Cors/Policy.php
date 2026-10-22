@@ -25,6 +25,8 @@ namespace SugarCommerce\S3Signer\Cors;
  * operation, which is what supports_multipart_upload() answers.
  *
  * @since 1.1.0
+ *
+ * @implements \IteratorAggregate<int, Rule>
  */
 final readonly class Policy implements \Countable, \IteratorAggregate {
 
@@ -34,7 +36,9 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	public const int MAX_RULES = 100;
 
 	/**
-	 * @param array<int, Rule> $rules The rules, in the order S3 evaluates them.
+	 * @since 1.1.0
+	 *
+	 * @param list<Rule> $rules The rules, in the order S3 evaluates them.
 	 *
 	 * @throws \InvalidArgumentException Above MAX_RULES.
 	 */
@@ -55,7 +59,7 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	 *
 	 * @since 1.1.0
 	 *
-	 * @param array<int, string> $origins Origins the uploader is served from.
+	 * @param list<string> $origins Origins the uploader is served from.
 	 *
 	 * @return self
 	 */
@@ -78,6 +82,8 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	 * @return self
 	 *
 	 * @throws \RuntimeException When the body is not parseable XML.
+	 * @throws \InvalidArgumentException When a rule in it has no origin, no
+	 *                                   method, or a method S3 would reject.
 	 */
 	public static function from_xml( string $xml ): self {
 		$xml = trim( $xml );
@@ -86,8 +92,10 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 			return new self();
 		}
 
+		// LIBXML_NONET: the document is a provider's answer, and nothing in it
+		// gets to make this process fetch anything else.
 		$previous = libxml_use_internal_errors( true );
-		$document = simplexml_load_string( $xml );
+		$document = simplexml_load_string( $xml, \SimpleXMLElement::class, LIBXML_NONET );
 		libxml_clear_errors();
 		libxml_use_internal_errors( $previous );
 
@@ -248,7 +256,7 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	 *
 	 * @since 1.3.0
 	 *
-	 * @param array<int, string> $origins Origins the uploader is served from.
+	 * @param list<string> $origins Origins the uploader is served from.
 	 *
 	 * @return array{ok: bool, reason: string} The first failing origin's
 	 *                                         reason. No origins at all is
@@ -260,7 +268,7 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 		}
 
 		foreach ( $origins as $origin ) {
-			$result = $this->supports_multipart_upload( (string) $origin );
+			$result = $this->supports_multipart_upload( $origin );
 
 			if ( ! $result['ok'] ) {
 				return $result;
@@ -303,7 +311,7 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	 *
 	 * @since 1.1.0
 	 *
-	 * @return array<int, string>
+	 * @return list<string>
 	 */
 	public function origins(): array {
 		return $this->unique( static fn( Rule $rule ): array => $rule->origins );
@@ -314,7 +322,7 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	 *
 	 * @since 1.1.0
 	 *
-	 * @return array<int, string>
+	 * @return list<string>
 	 */
 	public function methods(): array {
 		return $this->unique( static fn( Rule $rule ): array => $rule->methods );
@@ -349,11 +357,12 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	 *
 	 * @since 1.1.0
 	 *
-	 * @param callable $field Returns the field's values for one rule.
+	 * @param \Closure( Rule ): list<string> $field Returns the field's values
+	 *                                             for one rule.
 	 *
-	 * @return array<int, string>
+	 * @return list<string>
 	 */
-	private function unique( callable $field ): array {
+	private function unique( \Closure $field ): array {
 		$values = array();
 
 		foreach ( $this->rules as $rule ) {
@@ -386,7 +395,7 @@ final readonly class Policy implements \Countable, \IteratorAggregate {
 	 *
 	 * @param \SimpleXMLElement|null $nodes The repeated element.
 	 *
-	 * @return array<int, string>
+	 * @return list<string>
 	 */
 	private static function strings( ?\SimpleXMLElement $nodes ): array {
 		$values = array();

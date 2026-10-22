@@ -351,4 +351,20 @@ final class CorsTest extends TestCase {
 		$this->assertSame( Method::DELETE, $request->method );
 		$this->assertStringContainsString( '?cors', $request->url );
 	}
+
+	/* ─── Loose input (1.4.0) ───────────────────────────────────────── */
+
+	public function test_from_array_keeps_only_strings(): void {
+		$rule = Rule::from_array( array(
+			'AllowedOrigins' => array( 'https://a.example', 7, array( 'x' ) ),
+			'AllowedMethods' => 'GET',
+			'MaxAgeSeconds'  => 'soon',
+			'ID'             => array( 'not a name' ),
+		) );
+
+		$this->assertSame( array( 'https://a.example' ), $rule->origins );
+		$this->assertSame( array( 'GET' ), $rule->methods );
+		$this->assertSame( 0, $rule->max_age );
+		$this->assertSame( '', $rule->id );
+	}
 }

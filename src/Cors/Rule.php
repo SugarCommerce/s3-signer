@@ -42,15 +42,16 @@ final readonly class Rule {
 	public const array READ_HEADERS = array( 'Content-Length', 'Content-Type', 'ETag', 'Last-Modified' );
 
 	/**
-	 * @param array<int, string> $origins Origins the rule allows. `*` matches
-	 *                                    everything; S3 does no subdomain
-	 *                                    matching, so `*.example.com` matches
-	 *                                    nothing at all.
-	 * @param array<int, string> $methods Methods the rule allows.
-	 * @param array<int, string> $headers Request headers the browser may send.
-	 * @param array<int, string> $expose  Response headers the browser may read.
-	 * @param int                $max_age How long a preflight may be cached.
-	 * @param string             $id      Rule name, for reading a config back.
+	 * @since 1.1.0
+	 *
+	 * @param list<string> $origins Origins the rule allows. `*` matches
+	 *                              everything; S3 does no subdomain matching,
+	 *                              so `*.example.com` matches nothing at all.
+	 * @param list<string> $methods Methods the rule allows.
+	 * @param list<string> $headers Request headers the browser may send.
+	 * @param list<string> $expose  Response headers the browser may read.
+	 * @param int          $max_age How long a preflight may be cached.
+	 * @param string       $id      Rule name, for reading a config back.
 	 *
 	 * @throws \InvalidArgumentException On no origins, no methods, or a method
 	 *                                   S3 will reject.
@@ -93,8 +94,8 @@ final readonly class Rule {
 	 *
 	 * @since 1.1.0
 	 *
-	 * @param array<int, string> $origins Origins the uploader is served from.
-	 * @param int                $max_age Preflight cache lifetime.
+	 * @param list<string> $origins Origins the uploader is served from.
+	 * @param int          $max_age Preflight cache lifetime.
 	 *
 	 * @return self
 	 */
@@ -114,8 +115,8 @@ final readonly class Rule {
 	 *
 	 * @since 1.1.0
 	 *
-	 * @param array<int, string> $origins Origins that may read.
-	 * @param int                $max_age Preflight cache lifetime.
+	 * @param list<string> $origins Origins that may read.
+	 * @param int          $max_age Preflight cache lifetime.
 	 *
 	 * @return self
 	 */
@@ -135,19 +136,44 @@ final readonly class Rule {
 	 *
 	 * @since 1.1.0
 	 *
-	 * @param array $rule As produced by to_array(), or parsed from XML.
+	 * @param array<string, mixed> $rule As produced by to_array(), or parsed
+	 *                                   from XML. A field of the wrong type
+	 *                                   counts as absent, and a list keeps only
+	 *                                   its strings.
 	 *
 	 * @return self
+	 *
+	 * @throws \InvalidArgumentException As the constructor does.
 	 */
 	public static function from_array( array $rule ): self {
+		$max_age = $rule['MaxAgeSeconds'] ?? 0;
+		$id      = $rule['ID'] ?? '';
+
 		return new self(
-			origins: array_values( (array) ( $rule['AllowedOrigins'] ?? array() ) ),
-			methods: array_values( (array) ( $rule['AllowedMethods'] ?? array() ) ),
-			headers: array_values( (array) ( $rule['AllowedHeaders'] ?? array() ) ),
-			expose: array_values( (array) ( $rule['ExposeHeaders'] ?? array() ) ),
-			max_age: (int) ( $rule['MaxAgeSeconds'] ?? 0 ),
-			id: (string) ( $rule['ID'] ?? '' ),
+			origins: self::strings( $rule['AllowedOrigins'] ?? array() ),
+			methods: self::strings( $rule['AllowedMethods'] ?? array() ),
+			headers: self::strings( $rule['AllowedHeaders'] ?? array() ),
+			expose: self::strings( $rule['ExposeHeaders'] ?? array() ),
+			max_age: is_numeric( $max_age ) ? (int) $max_age : 0,
+			id: is_string( $id ) ? $id : '',
 		);
+	}
+
+	/**
+	 * The strings in a field, as a list.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param mixed $value A list, a single string, or anything else.
+	 *
+	 * @return list<string>
+	 */
+	private static function strings( mixed $value ): array {
+		if ( is_string( $value ) ) {
+			return array( $value );
+		}
+
+		return is_array( $value ) ? array_values( array_filter( $value, 'is_string' ) ) : array();
 	}
 
 	/**

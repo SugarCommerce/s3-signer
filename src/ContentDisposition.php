@@ -107,7 +107,7 @@ final readonly class ContentDisposition {
 		if ( class_exists( \Normalizer::class ) ) {
 			$normalized = \Normalizer::normalize( $name, \Normalizer::FORM_C );
 
-			if ( false !== $normalized && null !== $normalized ) {
+			if ( false !== $normalized ) {
 				$name = $normalized;
 			}
 		}
@@ -205,7 +205,7 @@ final readonly class ContentDisposition {
 				: false;
 		}
 
-		if ( false !== $transliterator ) {
+		if ( $transliterator instanceof \Transliterator ) {
 			$result = $transliterator->transliterate( $name );
 
 			if ( false !== $result ) {

@@ -159,6 +159,10 @@ final readonly class Signer {
 	 * @param int|null $timestamp  Fixed signing time, for tests.
 	 *
 	 * @return self
+	 *
+	 * @throws \InvalidArgumentException On an account id that is not plain
+	 *                                   letters and digits, or as the
+	 *                                   constructor does.
 	 */
 	public static function r2(
 		#[\SensitiveParameter] string $access_key,
@@ -166,6 +170,13 @@ final readonly class Signer {
 		string $account_id,
 		?int $timestamp = null,
 	): self {
+		// The id becomes the first label of the host. Anything but a plain
+		// label — `evil.example/` — would move the host somewhere else, and
+		// the signed requests with it.
+		if ( 1 !== preg_match( '/^[A-Za-z0-9]+$/', $account_id ) ) {
+			throw new \InvalidArgumentException( 'A Cloudflare account id is letters and digits only.' );
+		}
+
 		return new self(
 			$access_key,
 			$secret_key,
@@ -304,6 +315,8 @@ final readonly class Signer {
 	 *                                  browser to infer it from the key.
 	 *
 	 * @return string Fully-qualified HTTPS URL.
+	 *
+	 * @throws \InvalidArgumentException As presign() does.
 	 */
 	public function presign_get( string $bucket, string $key, int $expires_seconds = 60, string $download_filename = '' ): string {
 		$query = array();
@@ -332,11 +345,19 @@ final readonly class Signer {
 	 * @param int    $expires_seconds Validity window. Long enough for the
 	 *                                range requests a media element makes
 	 *                                while it plays and seeks.
-	 * @param string $content_type    What to call it, e.g. `audio/mpeg`.
+	 * @param string $content_type    What to call it, e.g. `audio/mpeg`. Never
+	 *                                one a visitor chose: `text/html` served
+	 *                                inline from the bucket's origin is a page
+	 *                                on that origin.
 	 *
 	 * @return string Fully-qualified HTTPS URL.
+	 *
+	 * @throws \InvalidArgumentException On a content type with a line break
+	 *                                   in it, or as presign() does.
 	 */
 	public function presign_inline( string $bucket, string $key, int $expires_seconds, string $content_type ): string {
+		self::assert_header_value( $content_type );
+
 		return $this->presign( Method::GET, $bucket, $key, array(
 			'response-content-type'        => $content_type,
 			'response-content-disposition' => 'inline',
@@ -368,11 +389,17 @@ final readonly class Signer {
 	 *                               signer's fixed time, then the clock.
 	 *
 	 * @return string Fully-qualified HTTPS URL.
+	 *
+	 * @throws \InvalidArgumentException On a window outside 1 second to half
+	 *                                   of MAX_EXPIRES, a content type with a
+	 *                                   line break in it, or as presign() does.
 	 */
 	public function presign_cacheable( string $bucket, string $key, int $window, string $content_type, ?int $now = null ): string {
 		if ( $window < 1 || 2 * $window > self::MAX_EXPIRES ) {
 			throw new \InvalidArgumentException( 'A cacheable URL window must be between 1 second and half of seven days.' );
 		}
+
+		self::assert_header_value( $content_type );
 
 		$now   ??= $this->timestamp ?? time();
 		$signer = clone( $this, array( 'timestamp' => intdiv( $now, $window ) * $window ) );
@@ -395,6 +422,9 @@ final readonly class Signer {
 	 * @param string $bucket Bucket name.
 	 *
 	 * @return string e.g. `https://files.acct.r2.cloudflarestorage.com`.
+	 *
+	 * @throws \InvalidArgumentException When the bucket cannot be a DNS label
+	 *                                   under virtual-hosted addressing.
 	 */
 	public function origin( string $bucket ): string {
 		return 'https://' . $this->host_for( $bucket );
@@ -413,6 +443,8 @@ final readonly class Signer {
 	 * @param int    $expires_seconds Validity window. Default 3600.
 	 *
 	 * @return string Fully-qualified HTTPS URL to PUT to.
+	 *
+	 * @throws \InvalidArgumentException As presign() does.
 	 */
 	public function presign_put( string $bucket, string $key, int $expires_seconds = 3600 ): string {
 		return $this->presign( Method::PUT, $bucket, $key, array(), $expires_seconds );
@@ -434,6 +466,8 @@ final readonly class Signer {
 	 * @param int    $expires_seconds Validity window. Default 3600.
 	 *
 	 * @return string Fully-qualified HTTPS URL to PUT the chunk to.
+	 *
+	 * @throws \InvalidArgumentException As presign() does.
 	 */
 	public function presign_upload_part( string $bucket, string $key, string $upload_id, int $part_number, int $expires_seconds = 3600 ): string {
 		return $this->presign(
@@ -463,6 +497,12 @@ final readonly class Signer {
 	 * @param int                   $expires_seconds Validity window. Default 3600.
 	 *
 	 * @return string Fully-qualified HTTPS URL.
+	 *
+	 * @throws \InvalidArgumentException On a lifetime outside 1 second to
+	 *                                   MAX_EXPIRES, a bucket or key with a
+	 *                                   `.` or `..` path segment, or a bucket
+	 *                                   that cannot be a DNS label under
+	 *                                   virtual-hosted addressing.
 	 */
 	public function presign( Method $method, string $bucket, string $key = '', array $query = array(), int $expires_seconds = 3600 ): string {
 		if ( $expires_seconds < 1 || $expires_seconds > self::MAX_EXPIRES ) {
@@ -524,6 +564,13 @@ final readonly class Signer {
 	 *                                       `['content-type' => 'audio/wav']`.
 	 *
 	 * @return SignedRequest Ready to hand to any HTTP client.
+	 *
+	 * @throws \InvalidArgumentException On a header name outside the token
+	 *                                   set, a header value with a line
+	 *                                   break, a bucket or key with a `.` or
+	 *                                   `..` path segment, or a bucket that
+	 *                                   cannot be a DNS label under
+	 *                                   virtual-hosted addressing.
 	 */
 	public function sign( Method $method, string $bucket, string $key = '', array $query = array(), string $payload = '', array $headers = array() ): SignedRequest {
 		[ $amz_date, $date ] = $this->stamp();
@@ -561,7 +608,7 @@ final readonly class Signer {
 		$signed['x-amz-content-sha256'] = $digest;
 		$signed['x-amz-date']           = $amz_date;
 
-		ksort( $signed );
+		ksort( $signed, SORT_STRING );
 
 		$canonical_headers = '';
 
@@ -612,6 +659,8 @@ final readonly class Signer {
 	 * @param string $mime_type Content-Type to store against the object.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does.
 	 */
 	public function sign_put_object( string $bucket, string $key, string $body, string $mime_type = 'application/octet-stream' ): SignedRequest {
 		return $this->sign( Method::PUT, $bucket, $key, array(), $body, array( 'content-type' => $mime_type ) );
@@ -638,6 +687,9 @@ final readonly class Signer {
 	 * @param string $cache_control Cache-Control for the copy, or ''.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does, including for the
+	 *                                   source bucket and key.
 	 */
 	public function sign_copy_object(
 		string $source_bucket,
@@ -647,10 +699,13 @@ final readonly class Signer {
 		string $content_type = 'application/octet-stream',
 		string $cache_control = ''
 	): SignedRequest {
+		self::assert_no_dot_segments( $source_bucket );
+		self::assert_no_dot_segments( $source_key );
+
 		$headers = array(
 			// Each segment encoded, the slashes between them kept: the
 			// source is a path, and an encoded slash names a different key.
-			'x-amz-copy-source'        => '/' . $source_bucket . '/' . implode( '/', array_map( 'rawurlencode', explode( '/', ltrim( $source_key, '/' ) ) ) ),
+			'x-amz-copy-source'        => '/' . rawurlencode( $source_bucket ) . '/' . implode( '/', array_map( 'rawurlencode', explode( '/', ltrim( $source_key, '/' ) ) ) ),
 			'x-amz-metadata-directive' => 'REPLACE',
 			'content-type'             => $content_type,
 		);
@@ -674,6 +729,8 @@ final readonly class Signer {
 	 * @param string $bucket Bucket name.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does.
 	 */
 	public function sign_get_bucket_cors( string $bucket ): SignedRequest {
 		return $this->sign( Method::GET, $bucket, '', array( 'cors' => '' ) );
@@ -694,6 +751,8 @@ final readonly class Signer {
 	 * @param Policy $policy The configuration to store.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does.
 	 */
 	public function sign_put_bucket_cors( string $bucket, Policy $policy ): SignedRequest {
 		$body = $policy->to_xml();
@@ -722,6 +781,8 @@ final readonly class Signer {
 	 * @param string $bucket Bucket name.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does.
 	 */
 	public function sign_delete_bucket_cors( string $bucket ): SignedRequest {
 		return $this->sign( Method::DELETE, $bucket, '', array( 'cors' => '' ) );
@@ -739,6 +800,8 @@ final readonly class Signer {
 	 * @param string $key    Object key to delete.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does.
 	 */
 	public function sign_delete_object( string $bucket, string $key ): SignedRequest {
 		return $this->sign( Method::DELETE, $bucket, $key );
@@ -755,6 +818,8 @@ final readonly class Signer {
 	 * @param string $key    Object key.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does.
 	 */
 	public function sign_head_object( string $bucket, string $key ): SignedRequest {
 		return $this->sign( Method::HEAD, $bucket, $key );
@@ -777,6 +842,8 @@ final readonly class Signer {
 	 * @param string $continuation_token Token from the previous page.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does.
 	 */
 	public function sign_list_objects( string $bucket, int $max_keys = 1000, string $prefix = '', string $delimiter = '/', string $continuation_token = '' ): SignedRequest {
 		$query = array(
@@ -812,6 +879,8 @@ final readonly class Signer {
 	 * @param string $mime_type Content-Type for the finished object.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does.
 	 */
 	public function sign_create_multipart_upload( string $bucket, string $key, string $mime_type = 'application/octet-stream' ): SignedRequest {
 		return $this->sign(
@@ -840,7 +909,8 @@ final readonly class Signer {
 	 *
 	 * @return SignedRequest
 	 *
-	 * @throws \InvalidArgumentException When no parts are supplied.
+	 * @throws \InvalidArgumentException When no parts are supplied, or as
+	 *                                   sign() does.
 	 */
 	public function sign_complete_multipart_upload( string $bucket, string $key, string $upload_id, array $parts ): SignedRequest {
 		if ( array() === $parts ) {
@@ -884,6 +954,8 @@ final readonly class Signer {
 	 * @param string $upload_id Upload id to abandon.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does.
 	 */
 	public function sign_abort_multipart_upload( string $bucket, string $key, string $upload_id ): SignedRequest {
 		return $this->sign( Method::DELETE, $bucket, $key, array( 'uploadId' => $upload_id ) );
@@ -909,6 +981,8 @@ final readonly class Signer {
 	 *                          the first page.
 	 *
 	 * @return SignedRequest
+	 *
+	 * @throws \InvalidArgumentException As sign() does.
 	 */
 	public function sign_list_parts( string $bucket, string $key, string $upload_id, int $max_parts = 1000, int $marker = 0 ): SignedRequest {
 		$query = array(
@@ -942,6 +1016,69 @@ final readonly class Signer {
 	 */
 	public static function content_disposition( string $name ): string {
 		return ContentDisposition::attachment( $name );
+	}
+
+	/**
+	 * What var_dump() and print_r() show: everything but the keys.
+	 *
+	 * `#[\SensitiveParameter]` keeps the keys out of stack traces only. A
+	 * signer dumped into a log or onto an error page would otherwise print
+	 * the secret in full.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return array{endpoint: string, region: string, addressing: string, timestamp: int|null}
+	 */
+	public function __debugInfo(): array {
+		return array(
+			'endpoint'   => $this->endpoint,
+			'region'     => $this->region,
+			'addressing' => $this->addressing->name,
+			'timestamp'  => $this->timestamp,
+		);
+	}
+
+	/**
+	 * Refuse a bucket or key with a `.` or `..` segment.
+	 *
+	 * S3 keeps a key like `a/../b` literally, but almost nothing between the
+	 * signer and the bucket does: browsers, curl, proxies and some gateways
+	 * collapse dot segments, and a provider that collapses them after
+	 * checking the signature would write or serve a key outside the prefix
+	 * the application meant — `uploads/<user>/` + `../<other user>/x`.
+	 * Refused here rather than signed.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param string $path Bucket name or object key.
+	 *
+	 * @return void
+	 *
+	 * @throws \InvalidArgumentException On a `.` or `..` segment.
+	 */
+	private static function assert_no_dot_segments( string $path ): void {
+		foreach ( explode( '/', $path ) as $segment ) {
+			if ( '.' === $segment || '..' === $segment ) {
+				throw new \InvalidArgumentException( 'An S3 bucket or key cannot contain a "." or ".." path segment.' );
+			}
+		}
+	}
+
+	/**
+	 * Refuse a value that would split a response header.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param string $value Header value.
+	 *
+	 * @return void
+	 *
+	 * @throws \InvalidArgumentException On CR, LF or NUL.
+	 */
+	private static function assert_header_value( string $value ): void {
+		if ( 1 === preg_match( '/[\r\n\x00]/', $value ) ) {
+			throw new \InvalidArgumentException( 'A header value cannot contain a line break.' );
+		}
 	}
 
 	/**
@@ -1041,8 +1178,13 @@ final readonly class Signer {
 	 * @param string $key    Object key, or '' for the bucket itself.
 	 *
 	 * @return string
+	 *
+	 * @throws \InvalidArgumentException On a `.` or `..` path segment.
 	 */
 	private function canonical_uri( string $bucket, string $key ): string {
+		self::assert_no_dot_segments( $bucket );
+		self::assert_no_dot_segments( $key );
+
 		if ( AddressingStyle::VirtualHosted === $this->addressing ) {
 			return '' === $key ? '/' : '/' . $this->encode_key( $key );
 		}
@@ -1082,9 +1224,23 @@ final readonly class Signer {
 	 * @return string
 	 */
 	private function canonical_query( array $query ): string {
-		ksort( $query );
+		$pairs = array();
 
-		return http_build_query( $query, '', '&', PHP_QUERY_RFC3986 );
+		foreach ( $query as $name => $value ) {
+			$pairs[ rawurlencode( (string) $name ) ] = rawurlencode( $value );
+		}
+
+		// SigV4 sorts by the encoded name, byte by byte. A plain ksort()
+		// compares numeric-looking names as numbers.
+		ksort( $pairs, SORT_STRING );
+
+		$out = array();
+
+		foreach ( $pairs as $name => $value ) {
+			$out[] = $name . '=' . $value;
+		}
+
+		return implode( '&', $out );
 	}
 
 	/**

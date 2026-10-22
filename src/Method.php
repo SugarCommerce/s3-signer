@@ -24,11 +24,30 @@ namespace SugarCommerce\S3Signer;
  */
 enum Method: string {
 
-	case GET    = 'GET';
-	case PUT    = 'PUT';
-	case POST   = 'POST';
+	/**
+	 * Read an object or a bucket listing.
+	 */
+	case GET = 'GET';
+
+	/**
+	 * Create or replace an object, a part, or a bucket setting.
+	 */
+	case PUT = 'PUT';
+
+	/**
+	 * Start or complete a multipart upload.
+	 */
+	case POST = 'POST';
+
+	/**
+	 * Remove an object or a bucket setting, or abort an upload.
+	 */
 	case DELETE = 'DELETE';
-	case HEAD   = 'HEAD';
+
+	/**
+	 * Read an object's metadata without its body.
+	 */
+	case HEAD = 'HEAD';
 
 	/**
 	 * Whether this method normally carries a request body.

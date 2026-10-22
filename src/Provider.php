@@ -33,15 +33,50 @@ namespace SugarCommerce\S3Signer;
  */
 enum Provider: string {
 
-	case Aws          = 'aws';
-	case R2           = 'r2';
-	case Backblaze    = 'backblaze';
+	/**
+	 * Amazon S3: `s3.<region>.amazonaws.com`, virtual-hosted.
+	 */
+	case Aws = 'aws';
+
+	/**
+	 * Cloudflare R2: `<account id>.r2.cloudflarestorage.com`, path-style.
+	 */
+	case R2 = 'r2';
+
+	/**
+	 * Backblaze B2: `s3.<region>.backblazeb2.com`, virtual-hosted.
+	 */
+	case Backblaze = 'backblaze';
+
+	/**
+	 * DigitalOcean Spaces: `<region>.digitaloceanspaces.com`, virtual-hosted.
+	 */
 	case DigitalOcean = 'digitalocean';
-	case Linode       = 'linode';
-	case Wasabi       = 'wasabi';
-	case Scaleway     = 'scaleway';
-	case MinIO        = 'minio';
-	case Other        = 'other';
+
+	/**
+	 * Linode (Akamai) Object Storage: `<region>.linodeobjects.com`.
+	 */
+	case Linode = 'linode';
+
+	/**
+	 * Wasabi: `s3.<region>.wasabisys.com`, virtual-hosted.
+	 */
+	case Wasabi = 'wasabi';
+
+	/**
+	 * Scaleway Object Storage: `s3.<region>.scw.cloud`, virtual-hosted.
+	 */
+	case Scaleway = 'scaleway';
+
+	/**
+	 * Self-hosted MinIO or Ceph: a host the operator types, path-style.
+	 */
+	case MinIO = 'minio';
+
+	/**
+	 * Anything else speaking S3: a host the operator types, path-style.
+	 */
+	case Other = 'other';
 
 	/**
 	 * A human label, for a settings dropdown.
@@ -135,10 +170,23 @@ enum Provider: string {
 	 *
 	 * @return string Host only, no scheme.
 	 *
-	 * @throws \InvalidArgumentException When a required part is missing.
+	 * @throws \InvalidArgumentException When a required part is missing, or
+	 *                                   a region or account id is not a plain
+	 *                                   label.
 	 */
 	public function endpoint( string $region = '', string $account_id = '', string $endpoint = '' ): string {
 		$region = '' !== trim( $region ) ? trim( $region ) : $this->default_region();
+
+		// Both are spliced into a hostname. A region of `evil.example/` would
+		// make the host `s3.evil.example/.amazonaws.com`, which everything
+		// downstream reads as `s3.evil.example`.
+		if ( 1 !== preg_match( '/^[A-Za-z0-9\-]+$/', $region ) ) {
+			throw new \InvalidArgumentException( 'A region is letters, digits and hyphens only.' );
+		}
+
+		if ( '' !== trim( $account_id ) && 1 !== preg_match( '/^[A-Za-z0-9]+$/', trim( $account_id ) ) ) {
+			throw new \InvalidArgumentException( 'An account id is letters and digits only.' );
+		}
 
 		if ( $this->needs_endpoint() ) {
 			$host = preg_replace( '#^https?://#i', '', trim( $endpoint ) );
@@ -182,6 +230,9 @@ enum Provider: string {
 	 * @param string $endpoint   Explicit host — MinIO and Other only.
 	 *
 	 * @return Signer
+	 *
+	 * @throws \InvalidArgumentException As endpoint() and the Signer
+	 *                                   constructor do.
 	 */
 	public function signer(
 		#[\SensitiveParameter] string $access_key,

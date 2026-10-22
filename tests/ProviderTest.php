@@ -172,4 +172,27 @@ final class ProviderTest extends TestCase {
 			'a port smuggled in'  => array( Provider::Wasabi, 's3.eu-1.wasabisys.com:8080' ),
 		);
 	}
+
+	/* ─── Spliced labels (1.4.0) ────────────────────────────────────── */
+
+	/**
+	 * A region or account id is spliced into a hostname; a slash in one
+	 * would move the host to wherever the text before it says.
+	 */
+	#[DataProvider( 'unplain_labels' )]
+	public function test_a_region_or_account_id_that_is_not_a_label_is_refused( Provider $provider, string $region, string $account_id ): void {
+		$this->expectException( \InvalidArgumentException::class );
+
+		$provider->endpoint( $region, $account_id );
+	}
+
+	/** @return array<string, array{0: Provider, 1: string, 2: string}> */
+	public static function unplain_labels(): array {
+		return array(
+			'aws region'      => array( Provider::Aws, 'evil.example/', '' ),
+			'spaces region'   => array( Provider::DigitalOcean, 'evil.example#', '' ),
+			'r2 account id'   => array( Provider::R2, '', 'evil.example/' ),
+			'r2 dotted id'    => array( Provider::R2, '', 'a.b' ),
+		);
+	}
 }
